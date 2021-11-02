@@ -1,5 +1,4 @@
 use std::io;
-use std::sync::atomic::Ordering;
 use std::sync::mpsc::Sender;
 
 use termion::event::Key;
@@ -19,7 +18,7 @@ pub(crate) fn input_handling(input_sender: Sender<Key>) -> Result<(), io::Error>
 pub fn handle_key(state: &mut State, k: Key) {
     match k {
         Key::Ctrl('c') => {
-            state.quit.store(true, Ordering::SeqCst);
+            state.quit = true;
         }
         Key::Backspace => {
             state.current_word.pop();

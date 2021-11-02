@@ -121,13 +121,11 @@ pub fn render_loop(
     terminal.clear()?;
 
     loop {
-        match input_receiver.recv_timeout(Duration::from_millis(50)) {
-            Ok(key) => handle_key(&mut state, key),
-            Err(_) => {}
+        if let Ok(key) = input_receiver.recv_timeout(Duration::from_millis(50)) {
+            handle_key(&mut state, key);
         }
 
-        let quit = state.quit.load(Ordering::SeqCst);
-        if quit {
+        if state.quit {
             terminal.clear()?;
             break;
         }
@@ -169,6 +167,8 @@ pub fn render_loop(
             let (x, y) = get_cursor_position(&state, &size);
 
             f.set_cursor(x, y);
+
+            // TODO: handle scrolling
         })?;
     }
 
