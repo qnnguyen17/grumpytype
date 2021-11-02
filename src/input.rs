@@ -28,9 +28,7 @@ pub fn handle_key(state: &mut State, k: Key) {
             if c == ' ' {
                 state.typed_words.push(state.current_word.clone());
                 state.current_word = "".into();
-            } else if c == '\r' || c == '\n' {
-                // NOOP
-            } else {
+            } else if c.is_ascii_alphabetic() {
                 state.current_word.push(c);
             }
         }

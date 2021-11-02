@@ -24,6 +24,7 @@ use tui::Terminal;
 
 use crate::input::handle_key;
 use crate::state::State;
+use crate::textgen::Dictionary;
 
 fn render_typed_word<'a>(
     typed_text: &'a str,
@@ -86,13 +87,33 @@ fn get_cursor_position(state: &State, area: &Rect) -> (u16, u16) {
     // Add the space that comes after the last fully typed word
     current_line_len += 1;
 
-    let cursor_y = current_line + 1;
-    let cursor_x = current_line_len + state.current_word.len() + 1;
+    let next_word_len = max(
+        state.current_word.len(),
+        state.text[state.typed_words.len()].len(),
+    );
 
-    (cursor_x as u16, cursor_y)
+    if current_line_len + next_word_len > type_area_width {
+        (state.current_word.len() as u16 + 1, current_line + 2)
+    } else {
+        (
+            (current_line_len + state.current_word.len() + 1) as u16,
+            current_line + 1,
+        )
+    }
 }
 
-pub fn render_loop(mut state: State, input_receiver: Receiver<Key>) -> Result<(), io::Error> {
+fn load_words(state: &mut State, dictionary: &mut Dictionary) {
+    let text = &mut state.text;
+    while text.len() < 50 {
+        text.push(dictionary.get_random_word());
+    }
+}
+
+pub fn render_loop(
+    mut state: State,
+    mut dictionary: Dictionary,
+    input_receiver: Receiver<Key>,
+) -> Result<(), io::Error> {
     let stdout = io::stdout().into_raw_mode()?;
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
@@ -112,24 +133,17 @@ pub fn render_loop(mut state: State, input_receiver: Receiver<Key>) -> Result<()
         }
 
         terminal.draw(|f| {
+            load_words(&mut state, &mut dictionary);
+
             let size = f.size();
             let num_typed_words = state.typed_words.len();
 
             let mut spans = Vec::new();
 
-            let mut first = true;
             for (typed, expected) in zip(state.typed_words.iter(), state.text.iter()) {
-                if first {
-                    first = false;
-                } else {
-                    spans.push(Span::raw(" "));
-                }
-                spans.extend(render_typed_word(typed, expected, true))
+                spans.extend(render_typed_word(typed, expected, true));
+                spans.push(" ".into());
             }
-
-            let maybe_leading_space = if num_typed_words > 0 { " " } else { "" };
-
-            spans.push(maybe_leading_space.into());
 
             spans.extend(render_typed_word(
                 &state.current_word,
@@ -137,7 +151,7 @@ pub fn render_loop(mut state: State, input_receiver: Receiver<Key>) -> Result<()
                 false,
             ));
 
-            spans.push(Span::raw(" "));
+            spans.push(" ".into());
 
             spans.push(Span::styled(
                 state.text[num_typed_words + 1..].join(" "),
