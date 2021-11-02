@@ -4,7 +4,7 @@
 #[derive(Debug, Default)]
 pub struct State {
     pub quit: bool,
-    pub text: Vec<String>,
+    pub all_words: Vec<String>,
     pub typed_words: Vec<String>,
     pub current_word: String,
 }

@@ -7,10 +7,10 @@ use std::io;
 use std::sync::mpsc::channel;
 use std::thread;
 
-use textgen::Dictionary;
 use input::input_handling;
 use render::render_loop;
 use state::State;
+use textgen::Dictionary;
 
 fn main() -> Result<(), io::Error> {
     let state = State::default();
@@ -23,7 +23,7 @@ fn main() -> Result<(), io::Error> {
         input_handling(sender).unwrap();
     });
 
-    render_loop(state, dictionary, receiver)?;
+    render_loop(state, dictionary, receiver, 5)?;
 
     Ok(())
 }
