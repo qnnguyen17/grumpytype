@@ -121,7 +121,7 @@ fn drop_first_line(state: &mut State, area: &Rect) {
 
 fn load_words(state: &mut State, dictionary: &mut Dictionary) {
     let text = &mut state.text;
-    while text.len() < 50 {
+    while text.len() < 100 {
         text.push(dictionary.get_random_word());
     }
 }

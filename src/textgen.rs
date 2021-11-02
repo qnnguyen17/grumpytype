@@ -11,11 +11,22 @@ pub struct Dictionary {
 }
 
 impl Dictionary {
-    pub fn from_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+    pub fn from_file<P: AsRef<Path>>(
+        path: P,
+        min_word_len: usize,
+        max_word_len: usize,
+    ) -> io::Result<Self> {
         let f = File::open(path)?;
         let reader = BufReader::new(f);
         Ok(Self {
-            words: reader.lines().collect::<io::Result<Vec<_>>>()?,
+            words: reader
+                .lines()
+                .filter_map(|line| match line {
+                    Ok(l) if min_word_len <= l.len() && l.len() <= max_word_len => Some(l),
+                    Ok(_) => None,
+                    Err(_) => None,
+                })
+                .collect(),
             rng: rand::thread_rng(),
         })
     }

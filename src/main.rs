@@ -15,7 +15,7 @@ use state::State;
 fn main() -> Result<(), io::Error> {
     let state = State::default();
 
-    let dictionary = Dictionary::from_file("google-10000-english-usa.txt")?;
+    let dictionary = Dictionary::from_file("google-10000-english-usa.txt", 3, 7)?;
 
     let (sender, receiver) = channel();
 
