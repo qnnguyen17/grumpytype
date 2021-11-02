@@ -1,6 +1,5 @@
 use std::cmp::max;
 use std::io;
-use std::sync::atomic::Ordering;
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
@@ -62,18 +61,24 @@ fn render_typed_word<'a>(
         .collect::<Vec<Span>>()
 }
 
+fn get_typed_word_len(s1: &str, s2: &str) -> usize {
+    max(s1.len(), s2.len())
+}
+
 fn get_cursor_position(state: &State, area: &Rect) -> (u16, u16) {
     // Subtract 2 for each side of the border
     let type_area_width = area.width as usize - 2;
 
     let mut current_line = 0;
     let mut current_line_len = match state.typed_words.get(0) {
-        Some(s) => s.len(),
+        Some(s) => get_typed_word_len(s, &state.text[0]),
         None => return (state.current_word.len() as u16 + 1, 1),
     };
 
-    zip(state.typed_words[1..].iter(), state.text[1..].iter()).for_each(|(typed, expected)| {
-        let word_len = max(typed.len(), expected.len());
+    let typed_and_expected_zip = zip(state.typed_words[1..].iter(), state.text[1..].iter());
+
+    typed_and_expected_zip.for_each(|(typed, expected)| {
+        let word_len = get_typed_word_len(typed, expected);
         if current_line_len + 1 + word_len > type_area_width {
             // If length of the space + the next word exceeds the width, then go to the next line
             current_line_len = word_len;
@@ -87,10 +92,8 @@ fn get_cursor_position(state: &State, area: &Rect) -> (u16, u16) {
     // Add the space that comes after the last fully typed word
     current_line_len += 1;
 
-    let next_word_len = max(
-        state.current_word.len(),
-        state.text[state.typed_words.len()].len(),
-    );
+    let next_word_len =
+        get_typed_word_len(&state.current_word, &state.text[state.typed_words.len()]);
 
     if current_line_len + next_word_len > type_area_width {
         (state.current_word.len() as u16 + 1, current_line + 2)
@@ -100,6 +103,20 @@ fn get_cursor_position(state: &State, area: &Rect) -> (u16, u16) {
             current_line + 1,
         )
     }
+}
+
+fn drop_first_line(state: &mut State, area: &Rect) {
+    let mut n_words = 0;
+    let mut current_line_len = state.text[0].len() as u16;
+
+    while current_line_len <= area.width - 2 {
+        n_words += 1;
+        current_line_len +=
+            get_typed_word_len(&state.text[n_words], &state.typed_words[n_words]) as u16 + 1;
+    }
+
+    state.text = state.text[n_words..].to_vec();
+    state.typed_words = state.typed_words[n_words..].to_vec();
 }
 
 fn load_words(state: &mut State, dictionary: &mut Dictionary) {
@@ -120,8 +137,10 @@ pub fn render_loop(
 
     terminal.clear()?;
 
+    let mut last_cursor_x = 1;
+
     loop {
-        if let Ok(key) = input_receiver.recv_timeout(Duration::from_millis(50)) {
+        if let Ok(key) = input_receiver.recv_timeout(Duration::from_millis(10)) {
             handle_key(&mut state, key);
         }
 
@@ -168,7 +187,11 @@ pub fn render_loop(
 
             f.set_cursor(x, y);
 
-            // TODO: handle scrolling
+            if last_cursor_x > x && y > 2 {
+                drop_first_line(&mut state, &size);
+            }
+
+            last_cursor_x = x;
         })?;
     }
 

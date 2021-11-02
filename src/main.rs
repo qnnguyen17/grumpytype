@@ -13,7 +13,7 @@ use render::render_loop;
 use state::State;
 
 fn main() -> Result<(), io::Error> {
-    let state = State::new();
+    let state = State::default();
 
     let dictionary = Dictionary::from_file("google-10000-english-usa.txt")?;
 
