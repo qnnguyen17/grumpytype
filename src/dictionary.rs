@@ -5,6 +5,8 @@ use std::path::Path;
 use rand::prelude::ThreadRng;
 use rand::{self, Rng};
 
+use crate::state::State;
+
 pub struct Dictionary {
     words: Vec<String>,
     rng: ThreadRng,
@@ -34,5 +36,12 @@ impl Dictionary {
     pub fn get_random_word(&mut self) -> String {
         let rand_n = self.rng.gen_range(0..self.words.len());
         self.words[rand_n].clone()
+    }
+
+    pub fn load_words(&mut self, state: &mut State, num_words: usize) {
+        let text = &mut state.all_words;
+        while text.len() < num_words {
+            text.push(self.get_random_word());
+        }
     }
 }

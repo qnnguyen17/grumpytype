@@ -1,18 +1,39 @@
 use std::io;
 use std::sync::mpsc::Sender;
+use std::time::Instant;
 
 use termion::event::Key;
 use termion::input::TermRead;
 
 use crate::state::State;
 
-pub(crate) fn input_handling(input_sender: Sender<Key>) -> Result<(), io::Error> {
+pub fn input_handling(input_sender: Sender<Key>) -> Result<(), io::Error> {
     let keys = io::stdin().keys();
     // TODO: error
     for k in keys {
         input_sender.send(k?).unwrap();
     }
     Ok(())
+}
+
+fn handle_space(state: &mut State) {
+    state.counters.attempted_word_count += 1;
+
+    let typed_word = &state.current_word;
+
+    if typed_word == &state.all_words[state.typed_words.len()] {
+        state.counters.correctly_typed_word_count += 1;
+    }
+
+    state.typed_words.push(typed_word.clone());
+    state.current_word = "".into();
+}
+
+fn handle_alpha(state: &mut State, c: char) {
+    if state.start_time.is_none() {
+        state.start_time = Some(Instant::now());
+    }
+    state.current_word.push(c);
 }
 
 pub fn handle_key(state: &mut State, k: Key) {
@@ -25,10 +46,9 @@ pub fn handle_key(state: &mut State, k: Key) {
         }
         Key::Char(c) => {
             if c == ' ' {
-                state.typed_words.push(state.current_word.clone());
-                state.current_word = "".into();
+                handle_space(state);
             } else if c.is_ascii_alphabetic() {
-                state.current_word.push(c);
+                handle_alpha(state, c);
             }
         }
         _ => {}
