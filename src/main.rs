@@ -1,6 +1,7 @@
 mod dictionary;
 mod error;
 mod input;
+mod opt;
 mod render;
 mod state;
 mod stats;
@@ -8,16 +9,22 @@ mod stats;
 use std::sync::mpsc::channel;
 use std::thread;
 
+use structopt::StructOpt;
+
 use dictionary::Dictionary;
 use error::ApplicationError;
 use input::input_handling;
+use opt::CliOptions;
 use render::{print_stats, render_loop};
 use state::State;
 
 fn main() -> Result<(), ApplicationError> {
+    let opt = CliOptions::from_args();
+
     let mut state = State::default();
 
-    let dictionary = Dictionary::from_file("google-10000-english-usa.txt", 3, 7)?;
+    let dictionary =
+        Dictionary::from_file(opt.dictionary_path, opt.min_word_len, opt.max_word_len)?;
 
     let (sender, receiver) = channel();
 
@@ -25,19 +32,15 @@ fn main() -> Result<(), ApplicationError> {
         input_handling(sender).unwrap();
     });
 
-    // TODO: accept args to determine these!
-    let num_text_lines_to_show = 5;
-    let time_limit_sec = 15;
-
     render_loop(
         &mut state,
         dictionary,
         receiver,
-        num_text_lines_to_show,
-        time_limit_sec,
+        opt.display_lines,
+        opt.time_limit,
     )?;
 
-    print_stats(&state.counters, time_limit_sec);
+    print_stats(&state.counters, opt.time_limit);
 
     Ok(())
 }
