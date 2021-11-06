@@ -1,19 +1,20 @@
 mod dictionary;
+mod error;
 mod input;
 mod render;
 mod state;
 mod stats;
 
-use std::io;
 use std::sync::mpsc::channel;
 use std::thread;
 
 use dictionary::Dictionary;
+use error::ApplicationError;
 use input::input_handling;
 use render::{print_stats, render_loop};
 use state::State;
 
-fn main() -> Result<(), io::Error> {
+fn main() -> Result<(), ApplicationError> {
     let mut state = State::default();
 
     let dictionary = Dictionary::from_file("google-10000-english-usa.txt", 3, 7)?;

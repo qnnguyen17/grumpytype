@@ -5,13 +5,14 @@ use std::time::Instant;
 use termion::event::Key;
 use termion::input::TermRead;
 
+use crate::error::ApplicationError;
 use crate::state::State;
 
-pub fn input_handling(input_sender: Sender<Key>) -> Result<(), io::Error> {
+pub fn input_handling(input_sender: Sender<Key>) -> Result<(), ApplicationError> {
     let keys = io::stdin().keys();
-    // TODO: error
     for k in keys {
-        input_sender.send(k?).unwrap();
+        let k = k.map_err(ApplicationError::InputKey)?;
+        input_sender.send(k).map_err(ApplicationError::InputSend)?;
     }
     Ok(())
 }

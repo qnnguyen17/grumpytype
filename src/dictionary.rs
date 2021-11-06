@@ -1,10 +1,11 @@
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{BufRead, BufReader};
 use std::path::Path;
 
 use rand::prelude::ThreadRng;
 use rand::{self, Rng};
 
+use crate::error::ApplicationError;
 use crate::state::State;
 
 pub struct Dictionary {
@@ -17,8 +18,8 @@ impl Dictionary {
         path: P,
         min_word_len: usize,
         max_word_len: usize,
-    ) -> io::Result<Self> {
-        let f = File::open(path)?;
+    ) -> Result<Self, ApplicationError> {
+        let f = File::open(path).map_err(ApplicationError::DictionaryLoad)?;
         let reader = BufReader::new(f);
         Ok(Self {
             words: reader

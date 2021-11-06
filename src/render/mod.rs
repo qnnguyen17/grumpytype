@@ -19,6 +19,7 @@ use tui::Frame;
 use tui::Terminal;
 
 use crate::dictionary::Dictionary;
+use crate::error::ApplicationError;
 use crate::input::handle_key;
 use crate::state::{Counters, State};
 use crate::stats::Stats;
@@ -131,13 +132,15 @@ pub fn render_loop(
     input_receiver: Receiver<Key>,
     num_text_lines_to_show: usize,
     time_limit_sec: u64,
-) -> Result<(), io::Error> {
-    let stdout = io::stdout().into_raw_mode()?;
+) -> Result<(), ApplicationError> {
+    let stdout = io::stdout()
+        .into_raw_mode()
+        .map_err(ApplicationError::RawMode)?;
     let stdout = AlternateScreen::from(stdout);
     let backend = TermionBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = Terminal::new(backend).map_err(ApplicationError::TerminalInstantiation)?;
 
-    terminal.clear()?;
+    terminal.clear().map_err(ApplicationError::TerminalClear)?;
 
     let mut last_cursor_x = 1;
 
@@ -149,44 +152,46 @@ pub fn render_loop(
         handle_timer(state, time_limit_sec);
 
         if state.quit {
-            terminal.clear()?;
+            terminal.clear().map_err(ApplicationError::TerminalClear)?;
             break;
         }
 
-        terminal.draw(|mut f| {
-            dictionary.load_words(state, 300);
+        terminal
+            .draw(|mut f| {
+                dictionary.load_words(state, 300);
 
-            let size = f.size();
+                let size = f.size();
 
-            let text_area_height = min(num_text_lines_to_show, size.height as usize);
+                let text_area_height = min(num_text_lines_to_show, size.height as usize);
 
-            let layout = ui_layout(size, text_area_height as u16);
+                let layout = ui_layout(size, text_area_height as u16);
 
-            let timer_area = layout[0];
-            let text_area_and_border = layout[1];
+                let timer_area = layout[0];
+                let text_area_and_border = layout[1];
 
-            draw_timer(&mut f, state, time_limit_sec, timer_area);
+                draw_timer(&mut f, state, time_limit_sec, timer_area);
 
-            draw_text_area(&mut f, state, text_area_and_border);
+                draw_text_area(&mut f, state, text_area_and_border);
 
-            let text_area_without_border = Rect {
-                x: text_area_and_border.x + 1,
-                y: text_area_and_border.y + 1,
-                width: text_area_and_border.width - 2,
-                height: text_area_and_border.height - 2,
-            };
+                let text_area_without_border = Rect {
+                    x: text_area_and_border.x + 1,
+                    y: text_area_and_border.y + 1,
+                    width: text_area_and_border.width - 2,
+                    height: text_area_and_border.height - 2,
+                };
 
-            let cursor_position = draw_cursor(&mut f, state, text_area_without_border);
-            drop_line_if_necessary(
-                state,
-                cursor_position,
-                last_cursor_x,
-                num_text_lines_to_show,
-                text_area_without_border,
-            );
+                let cursor_position = draw_cursor(&mut f, state, text_area_without_border);
+                drop_line_if_necessary(
+                    state,
+                    cursor_position,
+                    last_cursor_x,
+                    num_text_lines_to_show,
+                    text_area_without_border,
+                );
 
-            last_cursor_x = cursor_position.x;
-        })?;
+                last_cursor_x = cursor_position.x;
+            })
+            .map_err(ApplicationError::TerminalDraw)?;
     }
 
     Ok(())
