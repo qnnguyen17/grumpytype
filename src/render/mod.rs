@@ -13,7 +13,10 @@ use termion::raw::{IntoRawMode, RawTerminal};
 use termion::screen::AlternateScreen;
 use tui::backend::TermionBackend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
+use tui::style::Modifier;
+use tui::style::Style;
 use tui::text::Span;
+use tui::text::Spans;
 use tui::widgets::{Block, Borders, Paragraph, Wrap};
 use tui::Frame;
 use tui::Terminal;
@@ -21,7 +24,10 @@ use tui::Terminal;
 use crate::dictionary::Dictionary;
 use crate::error::ApplicationError;
 use crate::input::handle_key;
-use crate::state::{Counters, State};
+use crate::render::spans::span_correct;
+use crate::render::spans::span_default;
+use crate::render::spans::span_incorrect;
+use crate::state::State;
 use crate::stats::Stats;
 
 use self::cursor::get_cursor_position;
@@ -39,7 +45,7 @@ fn get_typing_seconds(state: &State) -> Option<u64> {
 fn handle_timer(state: &mut State, time_limit_sec: u64) {
     if let Some(elapsed_seconds) = get_typing_seconds(state) {
         if elapsed_seconds >= time_limit_sec {
-            state.quit = true;
+            state.complete = true;
         }
     }
 }
@@ -128,8 +134,8 @@ fn drop_line_if_necessary(
 
 pub fn render_loop(
     state: &mut State,
-    mut dictionary: Dictionary,
-    input_receiver: Receiver<Key>,
+    dictionary: &mut Dictionary,
+    input_receiver: &Receiver<Key>,
     num_text_lines_to_show: usize,
     time_limit_sec: u64,
 ) -> Result<(), ApplicationError> {
@@ -151,7 +157,7 @@ pub fn render_loop(
 
         handle_timer(state, time_limit_sec);
 
-        if state.quit {
+        if state.quit || state.complete {
             terminal.clear().map_err(ApplicationError::TerminalClear)?;
             break;
         }
@@ -197,11 +203,86 @@ pub fn render_loop(
     Ok(())
 }
 
-// TODO: maybe display this with a nice TUI
-pub fn print_stats(counters: &Counters, time_limit_sec: u64) {
-    let maybe_stats = Stats::from_counters(counters, time_limit_sec);
+pub fn print_stats(
+    state: &mut State,
+    input_receiver: &Receiver<Key>,
+    time_limit_sec: u64,
+) -> Result<(), ApplicationError> {
+    let maybe_stats = Stats::from_counters(&state.counters, time_limit_sec);
+
     if let Some(Stats { accuracy, wpm }) = maybe_stats {
-        println!("accuracy: {:.2}%", accuracy * 100.0);
-        println!("wpm: {:.2}", wpm);
+        let stdout = io::stdout()
+            .into_raw_mode()
+            .map_err(ApplicationError::RawMode)?;
+        let stdout = AlternateScreen::from(stdout);
+        let backend = TermionBackend::new(stdout);
+        let mut terminal =
+            Terminal::new(backend).map_err(ApplicationError::TerminalInstantiation)?;
+
+        terminal.clear().map_err(ApplicationError::TerminalClear)?;
+
+        loop {
+            if let Ok(key) = input_receiver.recv_timeout(Duration::from_millis(10)) {
+                if let Key::Ctrl('c') = key {
+                    state.quit = true;
+                    break;
+                }
+                if let Key::Char('r') = key {
+                    break;
+                }
+            }
+
+            terminal
+                .draw(|f| {
+                    let layout_outer = Layout::default()
+                        .direction(Direction::Vertical)
+                        .horizontal_margin(8)
+                        .constraints([Constraint::Length(8), Constraint::Min(0)])
+                        .split(f.size());
+
+                    let borders = Block::default().borders(Borders::ALL);
+                    f.render_widget(borders, layout_outer[0]);
+
+                    let layout = Layout::default()
+                        .direction(Direction::Vertical)
+                        .horizontal_margin(2)
+                        .vertical_margin(1)
+                        .constraints([
+                            Constraint::Length(1),
+                            Constraint::Length(1),
+                            Constraint::Length(1),
+                            Constraint::Length(1),
+                            Constraint::Length(1),
+                            Constraint::Length(1),
+                        ])
+                        .split(layout_outer[0]);
+
+                    let title =
+                        Span::styled("Stats", Style::default().add_modifier(Modifier::BOLD));
+                    let title = Paragraph::new(title);
+
+                    let accuracy = Span::from(format!("Accuracy: {:.2}%", accuracy * 100.0));
+                    let accuracy = Paragraph::new(accuracy);
+
+                    let wpm = Span::from(format!("WPM: {:.2}", wpm));
+                    let wpm = Paragraph::new(wpm);
+
+                    let instructions = Spans::from(vec![
+                        span_correct("Go again: "),
+                        span_default("r | "),
+                        span_incorrect("Quit: "),
+                        span_default("Ctrl-C"),
+                    ]);
+                    let instructions = Paragraph::new(instructions);
+
+                    f.render_widget(title, layout[0]);
+                    f.render_widget(accuracy, layout[2]);
+                    f.render_widget(wpm, layout[3]);
+                    f.render_widget(instructions, layout[5]);
+                })
+                .map_err(ApplicationError::TerminalDraw)?;
+        }
     }
+
+    Ok(())
 }

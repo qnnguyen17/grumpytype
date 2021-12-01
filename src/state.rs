@@ -10,6 +10,7 @@ pub struct Counters {
 pub struct State {
     pub start_time: Option<Instant>,
     pub quit: bool,
+    pub complete: bool,
     pub all_words: Vec<String>,
     pub typed_words: Vec<String>,
     pub current_word: String,

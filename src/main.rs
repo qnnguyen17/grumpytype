@@ -21,9 +21,7 @@ use state::State;
 fn main() -> Result<(), ApplicationError> {
     let opt = CliOptions::from_args();
 
-    let mut state = State::default();
-
-    let dictionary =
+    let mut dictionary =
         Dictionary::from_file(opt.dictionary_path, opt.min_word_len, opt.max_word_len)?;
 
     let (sender, receiver) = channel();
@@ -32,15 +30,25 @@ fn main() -> Result<(), ApplicationError> {
         input_handling(sender).unwrap();
     });
 
-    render_loop(
-        &mut state,
-        dictionary,
-        receiver,
-        opt.display_lines,
-        opt.time_limit,
-    )?;
+    loop {
+        let mut state = State::default();
+        render_loop(
+            &mut state,
+            &mut dictionary,
+            &receiver,
+            opt.display_lines,
+            opt.time_limit,
+        )?;
 
-    print_stats(&state.counters, opt.time_limit);
+        if state.quit {
+            break;
+        }
+
+        print_stats(&mut state, &receiver, opt.time_limit).unwrap();
+        if state.quit {
+            break;
+        }
+    }
 
     Ok(())
 }
