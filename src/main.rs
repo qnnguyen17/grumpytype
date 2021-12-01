@@ -15,7 +15,7 @@ use dictionary::Dictionary;
 use error::ApplicationError;
 use input::input_handling;
 use opt::CliOptions;
-use render::{print_stats, render_loop};
+use render::{render_stats, render_typing_test};
 use state::State;
 
 fn main() -> Result<(), ApplicationError> {
@@ -32,7 +32,7 @@ fn main() -> Result<(), ApplicationError> {
 
     loop {
         let mut state = State::default();
-        render_loop(
+        render_typing_test(
             &mut state,
             &mut dictionary,
             &receiver,
@@ -48,7 +48,7 @@ fn main() -> Result<(), ApplicationError> {
             continue;
         }
 
-        print_stats(&mut state, &receiver, opt.time_limit).unwrap();
+        render_stats(&mut state, &receiver, opt.time_limit).unwrap();
         if state.quit {
             break;
         }

@@ -37,6 +37,22 @@ fn handle_alpha(state: &mut State, c: char) {
     state.current_word.push(c);
 }
 
+fn handle_backspace(state: &mut State) {
+    if !state.current_word.is_empty() {
+        state.current_word.pop();
+    } else {
+        if state.typed_words.is_empty() {
+            return;
+        }
+
+        let num_typed_words = state.typed_words.len();
+        if state.all_words[num_typed_words - 1] != state.typed_words[num_typed_words - 1] {
+            let previous_typed_word = state.typed_words.pop().unwrap();
+            state.current_word = previous_typed_word;
+        }
+    }
+}
+
 pub fn handle_key(state: &mut State, k: Key) {
     match k {
         Key::Ctrl('c') => {
@@ -46,7 +62,7 @@ pub fn handle_key(state: &mut State, k: Key) {
             state.retry = true;
         }
         Key::Backspace => {
-            state.current_word.pop();
+            handle_backspace(state);
         }
         Key::Char(c) => {
             if c == ' ' {

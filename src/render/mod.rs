@@ -147,7 +147,7 @@ fn drop_line_if_necessary(
     }
 }
 
-pub fn render_loop(
+pub fn render_typing_test(
     state: &mut State,
     dictionary: &mut Dictionary,
     input_receiver: &Receiver<Key>,
@@ -221,7 +221,7 @@ pub fn render_loop(
     Ok(())
 }
 
-pub fn print_stats(
+pub fn render_stats(
     state: &mut State,
     input_receiver: &Receiver<Key>,
     time_limit_sec: u64,
@@ -287,7 +287,7 @@ pub fn print_stats(
 
                     let instructions = Spans::from(vec![
                         span_correct("Go again: "),
-                        span_default("r | "),
+                        span_default("R | "),
                         span_incorrect("Quit: "),
                         span_default("Ctrl-C"),
                     ]);
