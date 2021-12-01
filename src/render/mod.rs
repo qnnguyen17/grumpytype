@@ -75,6 +75,7 @@ fn ui_layout(area: Rect, text_area_height: u16) -> Vec<Rect> {
             Constraint::Length(1),
             // Add 2 for the borders
             Constraint::Length(text_area_height + 2),
+            Constraint::Length(1),
             Constraint::Min(0),
         ])
         .split(area)
@@ -89,7 +90,7 @@ fn draw_timer(
     if let Some(elapsed_seconds) = get_typing_seconds(state) {
         let timer_text = time_limit_sec - elapsed_seconds;
         let timer_text = timer_text.to_string();
-        let paragraph = Paragraph::new(vec![Span::raw(timer_text).into()]);
+        let paragraph = Paragraph::new(Span::raw(timer_text));
         frame.render_widget(paragraph, area);
     }
 }
@@ -104,6 +105,20 @@ fn draw_text_area(
     let paragraph = Paragraph::new(spans)
         .block(block)
         .wrap(Wrap { trim: false });
+    frame.render_widget(paragraph, area);
+}
+
+fn draw_instructions(
+    frame: &mut Frame<TermionBackend<AlternateScreen<RawTerminal<Stdout>>>>,
+    area: Rect,
+) {
+    let instructions = Spans::from(vec![
+        span_correct("Retry: "),
+        span_default("Ctrl-R | "),
+        span_incorrect("Quit: "),
+        span_default("Ctrl-C"),
+    ]);
+    let paragraph = Paragraph::new(instructions);
     frame.render_widget(paragraph, area);
 }
 
@@ -157,7 +172,7 @@ pub fn render_loop(
 
         handle_timer(state, time_limit_sec);
 
-        if state.quit || state.complete {
+        if state.quit || state.complete || state.retry {
             terminal.clear().map_err(ApplicationError::TerminalClear)?;
             break;
         }
@@ -174,10 +189,13 @@ pub fn render_loop(
 
                 let timer_area = layout[0];
                 let text_area_and_border = layout[1];
+                let instructions_area = layout[2];
 
                 draw_timer(&mut f, state, time_limit_sec, timer_area);
 
                 draw_text_area(&mut f, state, text_area_and_border);
+
+                draw_instructions(&mut f, instructions_area);
 
                 let text_area_without_border = Rect {
                     x: text_area_and_border.x + 1,

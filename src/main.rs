@@ -44,6 +44,10 @@ fn main() -> Result<(), ApplicationError> {
             break;
         }
 
+        if state.retry {
+            continue;
+        }
+
         print_stats(&mut state, &receiver, opt.time_limit).unwrap();
         if state.quit {
             break;

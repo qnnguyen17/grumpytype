@@ -42,6 +42,9 @@ pub fn handle_key(state: &mut State, k: Key) {
         Key::Ctrl('c') => {
             state.quit = true;
         }
+        Key::Ctrl('r') => {
+            state.retry = true;
+        }
         Key::Backspace => {
             state.current_word.pop();
         }
